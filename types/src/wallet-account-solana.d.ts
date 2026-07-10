@@ -34,19 +34,19 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     private _signer;
     /**
-     * Raw Ed25519 public key bytes (32 bytes).
-     *
-     * @private
-     * @type {Uint8Array | undefined}
-     */
-    private _rawPublicKey;
-    /**
      * Raw Ed25519 private key bytes (32 bytes).
      *
      * @private
      * @type {Uint8Array | undefined}
      */
     private _rawPrivateKey;
+    /**
+     * Raw Ed25519 public key bytes (32 bytes).
+     *
+     * @private
+     * @type {Uint8Array}
+     */
+    private _rawPublicKey;
     /**
      * The derivation path's index of this account.
      *
@@ -93,22 +93,33 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     sendTransaction(tx: SolanaTransaction): Promise<TransactionResult>;
     /** @private */
+    private _sendTransactionMessage;
+    /** @private */
     private _prepareTransactionMessage;
     /**
      * Transfers a token to another address.
      *
-     * @param {TransferOptions} options - The transfer's options.
+     * @param {import('./wallet-account-read-only-solana.js').SolanaTransferOptions} options - The transfer's options.
      * @returns {Promise<TransferResult>} The transfer's result.
      * @throws {Error} If the transfer's cost exceeds the maximum transfer fee option.
      * @note only SPL tokens - won't work for native SOL
      */
-    transfer(options: TransferOptions): Promise<TransferResult>;
+    transfer(options: import("./wallet-account-read-only-solana.js").SolanaTransferOptions): Promise<TransferResult>;
+    /**
+     * Burns a token from the account.
+     *
+     * @param {string} token - The SPL token mint address.
+     * @param {number | bigint} amount - The amount to burn.
+     * @returns {Promise<TransactionResult>} The transaction's result.
+     */
+    burn(token: string, amount: number | bigint): Promise<TransactionResult>;
     /**
      * Returns a read-only copy of the account.
      *
      * @returns {Promise<WalletAccountReadOnlySolana>} The read-only account.
      */
     toReadOnlyAccount(): Promise<WalletAccountReadOnlySolana>;
+    _solanaReadOnlyAccount: WalletAccountReadOnlySolana;
     /**
      * Disposes the wallet account, erasing the private key from the memory.
      */
@@ -119,7 +130,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      * @private
      * @returns {Promise<KeyPairSigner>} - The keypair signer
      */
-    _getSigner(): Promise<KeyPairSigner>;
+    private _getSigner;
 }
 export type IWalletAccount = import("@tetherto/wdk-wallet").IWalletAccount;
 export type KeyPair = import("@tetherto/wdk-wallet").KeyPair;
@@ -130,4 +141,4 @@ export type KeyPairSigner = import("@solana/signers").KeyPairSigner;
 export type SolanaTransaction = import("./wallet-account-read-only-solana.js").SolanaTransaction;
 export type SolanaWalletConfig = import("./wallet-account-read-only-solana.js").SolanaWalletConfig;
 export type FullySignedTransaction = import("@solana/transactions").FullySignedTransaction;
-import WalletAccountReadOnlySolana from "./wallet-account-read-only-solana.js";
+import WalletAccountReadOnlySolana from './wallet-account-read-only-solana.js';

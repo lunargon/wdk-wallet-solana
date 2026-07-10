@@ -41,6 +41,7 @@ describe('WalletAccountSolana', () => {
       provider: TEST_RPC_URL,
       commitment: 'processed'
     })
+    jest.spyOn(WalletAccountSolana.prototype, '_getTokenProgram').mockResolvedValue('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 
     account = await wallet.getAccount(0)
   })

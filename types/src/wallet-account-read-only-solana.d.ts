@@ -17,13 +17,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     protected _config: Omit<SolanaWalletConfig, "transferMaxFee" | "transactionMaxFee">;
     /**
-     * A Solana RPC client for HTTP requests.
-     *
-     * @protected
-     * @type {SolanaRpc | undefined}
-     */
-    protected _rpc: SolanaRpc | undefined;
-    /**
      * The commitment level for querying transaction and account states.
      * Determines the level of finality required before returning results.
      *
@@ -32,18 +25,19 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     protected _commitment: Commitment;
     /**
-     * Returns the account's native SOL balance.
+     * A Solana RPC client for HTTP requests.
      *
-     * @returns {Promise<bigint>} The sol balance (in lamports).
+     * @protected
+     * @type {SolanaRpc | undefined}
      */
-    getBalance(): Promise<bigint>;
+    protected _rpc: SolanaRpc | undefined;
     /**
-     * Returns the account balance for a specific SPL token.
-     *
-     * @param {string} tokenAddress - The smart contract address of the token.
-     * @returns {Promise<bigint>} The token balance (in base unit).
+     * Resolves the token program for a given mint (TOKEN_PROGRAM_ADDRESS or TOKEN_2022_PROGRAM_ADDRESS).
+     * @protected
+     * @param {string} mint - The mint address.
+     * @returns {Promise<string>} The program address.
      */
-    getTokenBalance(tokenAddress: string): Promise<bigint>;
+    protected _getTokenProgram(mint: string): Promise<string>;
     /**
      * Returns the account balances for a list of SPL tokens.
      *
@@ -61,10 +55,10 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
     /**
      * Quotes the costs of a transfer operation.
      *
-     * @param {TransferOptions} options - The transfer's options.
+     * @param {SolanaTransferOptions} options - The transfer's options.
      * @returns {Promise<Omit<TransferResult, 'hash'>>} The transfer's quotes.
      */
-    quoteTransfer(options: TransferOptions): Promise<Omit<TransferResult, "hash">>;
+    quoteTransfer(options: SolanaTransferOptions): Promise<Omit<TransferResult, "hash">>;
     /**
      * Retrieves a transaction receipt by its signature
      *
@@ -80,11 +74,20 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @param {string} token - The SPL token mint address (base58-encoded public key).
      * @param {string} recipient - The recipient's wallet address (base58-encoded public key).
      * @param {number | bigint} amount - The amount to transfer in token's base units (must be ≤ 2^64-1).
+     * @param {string} [memo] - Optional memo.
+     * @param {number | bigint} [priorityFee] - Optional priority fee in micro-lamports.
      * @returns {Promise<TransactionMessage>} The constructed transaction message.
-     * @todo Support Token-2022 (Token Extensions Program).
-     * @todo Support transfer with memo for tokens that require it.
      */
-    protected _buildSPLTransferTransactionMessage(token: string, recipient: string, amount: number | bigint): Promise<TransactionMessage>;
+    protected _buildSPLTransferTransactionMessage(token: string, recipient: string, amount: number | bigint, memo?: string, priorityFee?: number | bigint): Promise<TransactionMessage>;
+    /**
+     * Builds a transaction message for SPL token burn.
+     *
+     * @protected
+     * @param {string} token - The SPL token mint address (base58-encoded public key).
+     * @param {number | bigint} amount - The amount to burn in token's base units (must be ≤ 2^64-1).
+     * @returns {Promise<TransactionMessage>} The constructed transaction message.
+     */
+    protected _buildSPLBurnTransactionMessage(token: string, amount: number | bigint): Promise<TransactionMessage>;
     /**
      * Builds a transaction message for native SOL transfer.
      * Creates a transfer instruction for sending SOL.
@@ -92,9 +95,11 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @protected
      * @param {string} to - The recipient's address.
      * @param {number | bigint} value - The amount of SOL to send (in lamports).
+     * @param {string} [memo] - Optional memo.
+     * @param {number | bigint} [priorityFee] - Optional priority fee in micro-lamports.
      * @returns {Promise<TransactionMessage>} The constructed transaction message.
      */
-    protected _buildNativeTransferTransactionMessage(to: string, value: number | bigint): Promise<TransactionMessage>;
+    protected _buildNativeTransferTransactionMessage(to: string, value: number | bigint, memo?: string, priorityFee?: number | bigint): Promise<TransactionMessage>;
     /**
      * Calculates the fee for a given transaction message.
      *
@@ -103,14 +108,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @returns {Promise<bigint>} The calculated transaction fee in lamports.
      */
     protected _getTransactionFee(transactionMessage: TransactionMessage): Promise<bigint>;
-    /**
-     * Verifies a message's signature.
-     *
-     * @param {string} message - The original message.
-     * @param {string} signature - The signature to verify.
-     * @returns {Promise<boolean>} True if the signature is valid.
-     */
-    verify(message: string, signature: string): Promise<boolean>;
     /**
      * Ensures the transaction has either a blockhash lifetime or a durable nonce lifetime.
      *
@@ -136,6 +133,10 @@ export type TransactionMessage = import("@solana/transaction-messages").Transact
 export type SolanaRpc = ReturnType<typeof import("@solana/rpc").createSolanaRpc>;
 export type SolanaTransactionReceipt = ReturnType<import("@solana/rpc-api").SolanaRpcApi["getTransaction"]>;
 export type Commitment = import("@solana/rpc-types").Commitment;
+export type SolanaTransferOptions = TransferOptions & {
+    memo?: string;
+    priorityFee?: number | bigint;
+};
 export type SimpleSolanaTransaction = {
     /**
      * - The recipient's Solana address.
@@ -145,6 +146,14 @@ export type SimpleSolanaTransaction = {
      * - The amount of SOL to send in lamports (1 SOL = 1,000,000,000 lamports).
      */
     value: number | bigint;
+    /**
+     * - Optional memo.
+     */
+    memo?: string;
+    /**
+     * - Optional priority fee in micro-lamports.
+     */
+    priorityFee?: number | bigint;
 };
 export type SolanaTransaction = SimpleSolanaTransaction | TransactionMessage;
 export type SolanaWalletConfig = {
@@ -173,4 +182,4 @@ export type SolanaWalletConfig = {
      */
     transactionMaxFee?: number | bigint;
 };
-import { WalletAccountReadOnly } from "@tetherto/wdk-wallet";
+import { WalletAccountReadOnly } from '@tetherto/wdk-wallet';

@@ -52,6 +52,7 @@ describe('WalletAccountReadOnlySolana', () => {
 
     readOnlyAccount._rpc = mockRpc
     readOnlyAccount._commitment = 'confirmed'
+    jest.spyOn(readOnlyAccount, '_getTokenProgram').mockResolvedValue('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
   })
 
   describe('Constructor', () => {

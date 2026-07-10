@@ -284,7 +284,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
     let transactionMessage = tx
 
     if (tx.to !== undefined && tx.value !== undefined) {
-      transactionMessage = await this._buildNativeTransferTransactionMessage(tx.to, tx.value)
+      transactionMessage = await this._buildNativeTransferTransactionMessage(tx.to, tx.value, tx.memo, tx.priorityFee)
     }
 
     if (Array.isArray(transactionMessage.instructions)) {
@@ -300,7 +300,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
   /**
    * Transfers a token to another address.
    *
-   * @param {TransferOptions} options - The transfer's options.
+   * @param {import('./wallet-account-read-only-solana.js').SolanaTransferOptions} options - The transfer's options.
    * @returns {Promise<TransferResult>} The transfer's result.
    * @throws {Error} If the transfer's cost exceeds the maximum transfer fee option.
    * @note only SPL tokens - won't work for native SOL
@@ -314,12 +314,41 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
       throw new Error('The wallet must be connected to a provider to transfer tokens.')
     }
 
-    const { token, recipient, amount } = options
+    const { token, recipient, amount, memo, priorityFee } = options
 
-    const transactionMessage = await this._buildSPLTransferTransactionMessage(token, recipient, amount)
+    const transactionMessage = await this._buildSPLTransferTransactionMessage(token, recipient, amount, memo, priorityFee)
     const fee = await this._getTransactionFee(transactionMessage)
     if (this._config.transferMaxFee !== undefined && fee > this._config.transferMaxFee) {
       throw new Error('Exceeded maximum fee cost for transfer operation.')
+    }
+
+    const preparedMessage = await this._prepareTransactionMessage(transactionMessage)
+    const hash = await this._sendTransactionMessage(preparedMessage)
+
+    return { hash, fee }
+  }
+
+  /**
+   * Burns a token from the account.
+   *
+   * @param {string} token - The SPL token mint address.
+   * @param {number | bigint} amount - The amount to burn.
+   * @returns {Promise<TransactionResult>} The transaction's result.
+   */
+  async burn (token, amount) {
+    if (!this._rawPrivateKey) {
+      throw new Error('The wallet account has been disposed.')
+    }
+
+    if (!this._rpc) {
+      throw new Error('The wallet must be connected to a provider to burn tokens.')
+    }
+
+    const transactionMessage = await this._buildSPLBurnTransactionMessage(token, amount)
+    const fee = await this._getTransactionFee(transactionMessage)
+
+    if (this._config.transactionMaxFee !== undefined && fee > this._config.transactionMaxFee) {
+      throw new Error('Exceeded maximum fee cost for transaction operation.')
     }
 
     const preparedMessage = await this._prepareTransactionMessage(transactionMessage)
