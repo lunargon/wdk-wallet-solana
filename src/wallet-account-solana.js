@@ -75,19 +75,27 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
    * @param {SolanaWalletConfig} [config] - The configuration object.
    */
   constructor (seed, path, config = {}) {
+    let seedBuffer = seed
+    let isGeneratedSeed = false
+
     if (typeof seed === 'string') {
       if (!bip39.validateMnemonic(seed)) {
         throw new Error('The seed phrase is invalid.')
       }
 
-      seed = bip39.mnemonicToSeedSync(seed)
+      seedBuffer = bip39.mnemonicToSeedSync(seed)
+      isGeneratedSeed = true
     }
 
     assertFullHardenedPath(path)
 
     const fullPath = `${SLIP_0010_SOL_DERIVATION_PATH_PREFIX}/${path}`
 
-    const { privateKey } = HDKey.fromMasterSeed(seed).derive(fullPath, true)
+    const { privateKey } = HDKey.fromMasterSeed(seedBuffer).derive(fullPath, true)
+
+    if (isGeneratedSeed) {
+      sodium_memzero(seedBuffer)
+    }
 
     const publicKey = curve.getPublicKey(privateKey)
 
@@ -375,7 +383,14 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
    * Disposes the wallet account, erasing the private key from the memory.
    */
   dispose () {
-    sodium_memzero(this._rawPrivateKey)
+    if (this._rawPrivateKey) {
+      sodium_memzero(this._rawPrivateKey)
+    }
+
+    if (this._signer?.keyPair?.privateKey) {
+      sodium_memzero(this._signer.keyPair.privateKey)
+    }
+
     this._rawPrivateKey = undefined
     this._signer = undefined
     this._seed = undefined
