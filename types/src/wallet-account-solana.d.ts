@@ -1,5 +1,5 @@
 /** @implements {IWalletAccount} */
-export default class WalletAccountSolana extends WalletAccountReadOnlySolana implements IWalletAccount {
+export default class WalletAccountSolana extends WalletAccountReadOnlySolana implements IWalletAccount<FullySignedTransaction> {
     /**
      * Creates a new solana wallet account.
      *
@@ -85,13 +85,39 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     signTransaction(tx: SolanaTransaction): Promise<FullySignedTransaction>;
     /**
+     * Quotes the costs of a send transaction operation.
+     *
+     * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction. Either an unsigned transaction or an already-signed transaction.
+     * @returns {Promise<Omit<TransactionResult, 'hash'>>} The transaction's quotes.
+     */
+    quoteSendTransaction(tx: SolanaTransaction | FullySignedTransaction): Promise<Omit<TransactionResult, "hash">>;
+    /**
      * Sends a transaction.
      *
-     * @param {SolanaTransaction} tx - The transaction.
+     * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction. Either an unsigned transaction or an already-signed transaction.
      * @returns {Promise<TransactionResult>} The transaction's result.
      * @throws {Error} If the transaction's cost exceeds the maximum transaction fee option.
      */
-    sendTransaction(tx: SolanaTransaction): Promise<TransactionResult>;
+    sendTransaction(tx: SolanaTransaction | FullySignedTransaction): Promise<TransactionResult>;
+    /** @private */
+    private _broadcastSignedTransaction;
+    /**
+     * Determines whether a value is an already-signed transaction (as returned by `signTransaction`)
+     * rather than an unsigned {@link SolanaTransaction}.
+     *
+     * @protected
+     * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction to inspect.
+     * @returns {boolean} True if the value is a signed transaction.
+     */
+    protected _isSignedTransaction(tx: SolanaTransaction | FullySignedTransaction): boolean;
+    /**
+     * Calculates the fee for an already-signed transaction.
+     *
+     * @protected
+     * @param {FullySignedTransaction} signedTransaction - The signed transaction.
+     * @returns {Promise<bigint>} The calculated transaction fee in lamports.
+     */
+    protected _getSignedTransactionFee(signedTransaction: FullySignedTransaction): Promise<bigint>;
     /** @private */
     private _sendTransactionMessage;
     /** @private */
@@ -132,7 +158,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     private _getSigner;
 }
-export type IWalletAccount = import("@tetherto/wdk-wallet").IWalletAccount;
+export type IWalletAccount<TSignedTransaction> = import("@tetherto/wdk-wallet").IWalletAccount<TSignedTransaction>;
 export type KeyPair = import("@tetherto/wdk-wallet").KeyPair;
 export type TransactionResult = import("@tetherto/wdk-wallet").TransactionResult;
 export type TransferOptions = import("@tetherto/wdk-wallet").TransferOptions;

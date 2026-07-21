@@ -80,6 +80,7 @@ function getSetComputeUnitPriceInstruction({ microLamports }) {
 /** @typedef {import('@tetherto/wdk-wallet').TransferResult} TransferResult */
 
 /** @typedef {import('@solana/transaction-messages').TransactionMessage} TransactionMessage */
+/** @typedef {import('@solana/transactions').FullySignedTransaction} FullySignedTransaction */
 /** @typedef {ReturnType<typeof import('@solana/rpc').createSolanaRpc>} SolanaRpc */
 /** @typedef {ReturnType<import('@solana/rpc-api').SolanaRpcApi['getTransaction']>} SolanaTransactionReceipt */
 /** @typedef {import('@solana/rpc-types').Commitment} Commitment */
@@ -595,6 +596,17 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
       base64Decoder.decode
     )
 
+    return await this._getFeeForBase64Message(base64EncodedMessage)
+  }
+
+  /**
+   * Queries the RPC for the fee of a base64-encoded, compiled transaction message.
+   *
+   * @protected
+   * @param {string} base64EncodedMessage - The base64-encoded compiled transaction message.
+   * @returns {Promise<bigint>} The calculated transaction fee in lamports.
+   */
+  async _getFeeForBase64Message (base64EncodedMessage) {
     const fee = await this._rpc
       .getFeeForMessage(base64EncodedMessage, {
         commitment: this._commitment

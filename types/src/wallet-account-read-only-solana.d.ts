@@ -109,6 +109,22 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     protected _getTransactionFee(transactionMessage: TransactionMessage): Promise<bigint>;
     /**
+     * Queries the RPC for the fee of a base64-encoded, compiled transaction message.
+     *
+     * @protected
+     * @param {string} base64EncodedMessage - The base64-encoded compiled transaction message.
+     * @returns {Promise<bigint>} The calculated transaction fee in lamports.
+     */
+    protected _getFeeForBase64Message(base64EncodedMessage: string): Promise<bigint>;
+    /**
+     * Verifies a message's signature.
+     *
+     * @param {string} message - The original message.
+     * @param {string} signature - The signature to verify.
+     * @returns {Promise<boolean>} True if the signature is valid.
+     */
+    verify(message: string, signature: string): Promise<boolean>;
+    /**
      * Ensures the transaction has either a blockhash lifetime or a durable nonce lifetime.
      *
      * @protected
@@ -130,6 +146,7 @@ export type TransactionResult = import("@tetherto/wdk-wallet").TransactionResult
 export type TransferOptions = import("@tetherto/wdk-wallet").TransferOptions;
 export type TransferResult = import("@tetherto/wdk-wallet").TransferResult;
 export type TransactionMessage = import("@solana/transaction-messages").TransactionMessage;
+export type FullySignedTransaction = import("@solana/transactions").FullySignedTransaction;
 export type SolanaRpc = ReturnType<typeof import("@solana/rpc").createSolanaRpc>;
 export type SolanaTransactionReceipt = ReturnType<import("@solana/rpc-api").SolanaRpcApi["getTransaction"]>;
 export type Commitment = import("@solana/rpc-types").Commitment;

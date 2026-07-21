@@ -24,6 +24,8 @@ import {
   afterEach
 } from '@jest/globals'
 import { getCompiledTransactionMessageDecoder } from '@solana/transaction-messages'
+import { signTransactionMessageWithSigners } from '@solana/signers'
+import { getBase64EncodedWireTransaction } from '@solana/transactions'
 import WalletManagerSolana from '../src/wallet-manager-solana.js'
 import WalletAccountSolana from '../src/wallet-account-solana.js'
 import WalletAccountReadOnlySolana from '../src/wallet-account-read-only-solana.js'
@@ -31,6 +33,14 @@ import WalletAccountReadOnlySolana from '../src/wallet-account-read-only-solana.
 const TEST_SEED_PHRASE =
   'test walk nut penalty hip pave soap entry language right filter choice'
 const TEST_RPC_URL = 'https://mockurl.com'
+
+// Manually builds a fully-signed transaction using the Solana SDK directly,
+// without relying on the account's `signTransaction` method.
+async function buildSignedTransaction (account, tx) {
+  const transactionMessage = await account._prepareTransactionMessage(tx)
+
+  return await signTransactionMessageWithSigners(transactionMessage)
+}
 
 describe('WalletAccountSolana', () => {
   let wallet
@@ -620,6 +630,108 @@ describe('WalletAccountSolana', () => {
 
         expect(result).toHaveProperty('hash')
       })
+    })
+
+    it('should broadcast an already-signed transaction', async () => {
+      mockRpc.getFeeForMessage.mockReturnValue({
+        send: jest.fn().mockResolvedValue({ value: 5000 })
+      })
+      mockRpc.sendTransaction.mockReturnValue({
+        send: jest.fn().mockResolvedValue('signed-tx-signature')
+      })
+
+      account._rpc = mockRpc
+
+      const signedTx = await buildSignedTransaction(account, {
+        to: '9CXtfmGEtfjmtPKnq2QZcRzCiMzE9T8NQfRicJZetvk2',
+        value: 1000000n
+      })
+
+      const result = await account.sendTransaction(signedTx)
+
+      expect(result.hash).toBe('signed-tx-signature')
+      expect(result.fee).toBe(5000n)
+      expect(mockRpc.sendTransaction).toHaveBeenCalledWith(
+        getBase64EncodedWireTransaction(signedTx),
+        { encoding: 'base64' }
+      )
+    })
+
+    it('should throw if a signed transaction fee exceeds the transaction max fee configuration', async () => {
+      mockRpc.getFeeForMessage.mockReturnValue({
+        send: jest.fn().mockResolvedValue({ value: 5000 })
+      })
+      mockRpc.sendTransaction.mockReturnValue({
+        send: jest.fn().mockResolvedValue('sig')
+      })
+
+      account._rpc = mockRpc
+
+      const signedTx = await buildSignedTransaction(account, {
+        to: '9CXtfmGEtfjmtPKnq2QZcRzCiMzE9T8NQfRicJZetvk2',
+        value: 1000000n
+      })
+
+      const limitedWallet = new WalletManagerSolana(TEST_SEED_PHRASE, {
+        provider: TEST_RPC_URL,
+        commitment: 'confirmed',
+        transactionMaxFee: 0n
+      })
+      const limitedAccount = await limitedWallet.getAccount(0)
+
+      limitedAccount._rpc = mockRpc
+
+      await expect(
+        limitedAccount.sendTransaction(signedTx)
+      ).rejects.toThrow('Exceeded maximum fee cost for transaction operation.')
+    })
+  })
+
+  describe('quoteSendTransaction', () => {
+    let mockRpc
+    let originalRpc
+
+    beforeEach(() => {
+      originalRpc = account._rpc
+
+      mockRpc = {
+        getFeeForMessage: jest.fn(),
+        sendTransaction: jest.fn(),
+        getSignatureStatuses: jest.fn(),
+        getLatestBlockhash: jest.fn().mockReturnValue({
+          send: jest.fn().mockResolvedValue({
+            value: {
+              blockhash: '6JbYxigC1rn83PMHZait5FHHpC3YqUMacnVJWFwfoayQ',
+              lastValidBlockHeight: 1000000
+            }
+          })
+        })
+      }
+    })
+
+    afterEach(() => {
+      account._rpc = originalRpc
+    })
+
+    it('should quote an already-signed transaction without broadcasting', async () => {
+      mockRpc.getFeeForMessage.mockReturnValue({
+        send: jest.fn().mockResolvedValue({ value: 5000 })
+      })
+
+      account._rpc = mockRpc
+
+      const tx = {
+        to: '9CXtfmGEtfjmtPKnq2QZcRzCiMzE9T8NQfRicJZetvk2',
+        value: 1000000n
+      }
+
+      const signedTx = await buildSignedTransaction(account, tx)
+
+      const { fee: unsignedFee } = await account.quoteSendTransaction(tx)
+      const { fee: signedFee } = await account.quoteSendTransaction(signedTx)
+
+      expect(signedFee).toBe(unsignedFee)
+      expect(signedFee).toBe(5000n)
     })
   })
 

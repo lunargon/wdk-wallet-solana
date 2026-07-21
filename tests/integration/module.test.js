@@ -275,6 +275,33 @@ describe('@tetherto/wdk-wallet-solana', () => {
     expect(fee).toBe(feeEstimate)
   })
 
+  test('should derive an account, sign a transaction and broadcast the resulting signed transaction', async () => {
+    const account = await wallet.getAccount(0)
+
+    const TRANSACTION = { to: ACCOUNT_1.address, value: 1_000 }
+
+    const signedTx = await account.signTransaction(TRANSACTION)
+
+    const { hash } = await account.sendTransaction(signedTx)
+    await confirmTransaction(rpc, hash)
+    const receipt = await account.getTransactionReceipt(hash)
+
+    expect(receipt.transaction.signatures).toContain(hash)
+    expect(receipt.meta.err).toBeNull()
+  })
+
+  test('should derive an account, sign a transaction and quote the resulting signed transaction without broadcasting', async () => {
+    const account = await wallet.getAccount(0)
+
+    const TRANSACTION = { to: ACCOUNT_1.address, value: 1_000 }
+
+    const signedTx = await account.signTransaction(TRANSACTION)
+
+    const { fee } = await account.quoteSendTransaction(signedTx)
+
+    expect(fee).toBe(5000n)
+  })
+
   test('should derive two accounts, send a tx from account 1 to 2 and get the correct balances', async () => {
     const account0 = await wallet.getAccount(0)
 

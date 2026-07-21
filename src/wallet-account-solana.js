@@ -22,6 +22,7 @@ import {
 import { getBase64EncodedWireTransaction } from '@solana/transactions'
 import { signBytes } from '@solana/keys'
 import { getAddressDecoder } from '@solana/addresses'
+import { getBase64Decoder } from '@solana/codecs'
 
 import HDKey from 'micro-key-producer/slip10.js'
 
@@ -65,7 +66,7 @@ function assertFullHardenedPath (path) {
   }
 }
 
-/** @implements {IWalletAccount} */
+/** @implements {IWalletAccount<FullySignedTransaction>} */
 export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
   /**
    * Creates a new solana wallet account.
@@ -252,9 +253,29 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
   }
 
   /**
+   * Quotes the costs of a send transaction operation.
+   *
+   * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction. Either an unsigned transaction or an already-signed transaction.
+   * @returns {Promise<Omit<TransactionResult, 'hash'>>} The transaction's quotes.
+   */
+  async quoteSendTransaction (tx) {
+    if (this._isSignedTransaction(tx)) {
+      if (!this._rpc) {
+        throw new Error('The wallet must be connected to a provider to quote transactions.')
+      }
+
+      const fee = await this._getSignedTransactionFee(tx)
+
+      return { fee }
+    }
+
+    return await super.quoteSendTransaction(tx)
+  }
+
+  /**
    * Sends a transaction.
    *
-   * @param {SolanaTransaction} tx - The transaction.
+   * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction. Either an unsigned transaction or an already-signed transaction.
    * @returns {Promise<TransactionResult>} The transaction's result.
    * @throws {Error} If the transaction's cost exceeds the maximum transaction fee option.
    */
@@ -265,6 +286,18 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
 
     if (!this._rpc) {
       throw new Error('The wallet must be connected to a provider to send transactions.')
+    }
+
+    if (this._isSignedTransaction(tx)) {
+      const { fee } = await this.quoteSendTransaction(tx)
+
+      if (this._config.transactionMaxFee !== undefined && fee > this._config.transactionMaxFee) {
+        throw new Error('Exceeded maximum fee cost for transaction operation.')
+      }
+
+      const hash = await this._broadcastSignedTransaction(tx)
+
+      return { hash, fee }
     }
 
     const transactionMessage = await this._prepareTransactionMessage(tx)
@@ -283,8 +316,41 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
   /** @private */
   async _sendTransactionMessage (transactionMessage) {
     const signedTransaction = await signTransactionMessageWithSigners(transactionMessage)
+    return await this._broadcastSignedTransaction(signedTransaction)
+  }
+
+  /** @private */
+  async _broadcastSignedTransaction (signedTransaction) {
     const encodedTransaction = getBase64EncodedWireTransaction(signedTransaction)
     return await this._rpc.sendTransaction(encodedTransaction, { encoding: 'base64' }).send()
+  }
+
+  /**
+   * Determines whether a value is an already-signed transaction (as returned by `signTransaction`)
+   * rather than an unsigned {@link SolanaTransaction}.
+   *
+   * @protected
+   * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction to inspect.
+   * @returns {boolean} True if the value is a signed transaction.
+   */
+  _isSignedTransaction (tx) {
+    return tx !== null &&
+      typeof tx === 'object' &&
+      tx.messageBytes !== undefined &&
+      tx.signatures !== undefined
+  }
+
+  /**
+   * Calculates the fee for an already-signed transaction.
+   *
+   * @protected
+   * @param {FullySignedTransaction} signedTransaction - The signed transaction.
+   * @returns {Promise<bigint>} The calculated transaction fee in lamports.
+   */
+  async _getSignedTransactionFee (signedTransaction) {
+    const base64EncodedMessage = getBase64Decoder().decode(signedTransaction.messageBytes)
+
+    return await this._getFeeForBase64Message(base64EncodedMessage)
   }
 
   /** @private */
