@@ -7,19 +7,19 @@ export default class WalletManagerSolana extends WalletManager {
      */
     constructor(seed: string | Uint8Array, config?: SolanaWalletConfig);
     /**
-     * The commitment level for transactions.
-     *
-     * @protected
-     * @type {Commitment}
-     */
-    protected _commitment: Commitment;
-    /**
      * A Solana RPC client for HTTP requests.
      *
      * @protected
      * @type {SolanaRpc | undefined}
      */
     protected _rpc: SolanaRpc | undefined;
+    /**
+     * The commitment level for transactions.
+     *
+     * @protected
+     * @type {Commitment}
+     */
+    protected _commitment: Commitment;
     /**
      * Returns the wallet account at a specific index (see [SLIP-0010](https://slips.readthedocs.io/en/latest/slip-0010/)).
      *

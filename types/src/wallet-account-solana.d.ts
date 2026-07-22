@@ -34,19 +34,19 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     private _signer;
     /**
+     * Raw Ed25519 public key bytes (32 bytes).
+     *
+     * @private
+     * @type {Uint8Array | undefined}
+     */
+    private _rawPublicKey;
+    /**
      * Raw Ed25519 private key bytes (32 bytes).
      *
      * @private
      * @type {Uint8Array | undefined}
      */
     private _rawPrivateKey;
-    /**
-     * Raw Ed25519 public key bytes (32 bytes).
-     *
-     * @private
-     * @type {Uint8Array}
-     */
-    private _rawPublicKey;
     /**
      * The derivation path's index of this account.
      *
@@ -148,7 +148,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      * @private
      * @returns {Promise<KeyPairSigner>} - The keypair signer
      */
-    private _getSigner;
+    _getSigner(): Promise<KeyPairSigner>;
 }
 export type IWalletAccount = import("@tetherto/wdk-wallet").IWalletAccount;
 export type KeyPair = import("@tetherto/wdk-wallet").KeyPair;

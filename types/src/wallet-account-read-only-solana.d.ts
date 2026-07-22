@@ -17,6 +17,13 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     protected _config: Omit<SolanaWalletConfig, "transferMaxFee" | "transactionMaxFee">;
     /**
+     * A Solana RPC client for HTTP requests.
+     *
+     * @protected
+     * @type {SolanaRpc | undefined}
+     */
+    protected _rpc: SolanaRpc | undefined;
+    /**
      * The commitment level for querying transaction and account states.
      * Determines the level of finality required before returning results.
      *
@@ -25,12 +32,11 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     protected _commitment: Commitment;
     /**
-     * A Solana RPC client for HTTP requests.
+     * Returns the account's native SOL balance.
      *
-     * @protected
-     * @type {SolanaRpc | undefined}
+     * @returns {Promise<bigint>} The sol balance (in lamports).
      */
-    protected _rpc: SolanaRpc | undefined;
+    getBalance(): Promise<bigint>;
     /**
      * Resolves the token program for a given mint (TOKEN_PROGRAM_ADDRESS or TOKEN_2022_PROGRAM_ADDRESS).
      * @protected
@@ -38,6 +44,13 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @returns {Promise<Address>} The program address.
      */
     protected _getTokenProgram(mint: Address): Promise<Address>;
+    /**
+     * Returns the account balance for a specific SPL token.
+     *
+     * @param {string} tokenAddress - The smart contract address of the token.
+     * @returns {Promise<bigint>} The token balance (in base unit).
+     */
+    getTokenBalance(tokenAddress: string): Promise<bigint>;
     /**
      * Returns the account balances for a list of SPL tokens.
      *
@@ -52,6 +65,13 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @returns {Promise<Omit<TransactionResult, 'hash'>>} The transaction's quotes.
      */
     quoteSendTransaction(tx: SolanaTransaction): Promise<Omit<TransactionResult, "hash">>;
+    /**
+     * Quotes the costs of a transfer operation.
+     *
+     * @param {TransferOptions} options - The transfer's options.
+     * @returns {Promise<Omit<TransferResult, 'hash'>>} The transfer's quotes.
+     */
+    quoteTransfer(options: TransferOptions): Promise<Omit<TransferResult, "hash">>;
     /**
      * Retrieves a transaction receipt by its signature
      *
@@ -97,6 +117,14 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @returns {Promise<bigint>} The calculated transaction fee in lamports.
      */
     protected _getFeeForBase64Message(base64EncodedMessage: string): Promise<bigint>;
+    /**
+     * Verifies a message's signature.
+     *
+     * @param {string} message - The original message.
+     * @param {string} signature - The signature to verify.
+     * @returns {Promise<boolean>} True if the signature is valid.
+     */
+    verify(message: string, signature: string): Promise<boolean>;
     /**
      * Ensures the transaction has either a blockhash lifetime or a durable nonce lifetime.
      *

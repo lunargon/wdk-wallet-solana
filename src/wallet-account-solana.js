@@ -39,7 +39,7 @@ import WalletAccountReadOnlySolana from './wallet-account-read-only-solana.js'
 // To enable @noble's synchronous methods
 curve.hashes.sha512 = sha512
 
-/** @typedef {import("@tetherto/wdk-wallet").IWalletAccount} IWalletAccount */
+/** @typedef {import('@tetherto/wdk-wallet').IWalletAccount} IWalletAccount */
 /** @typedef {import('@tetherto/wdk-wallet').KeyPair} KeyPair */
 /** @typedef {import('@tetherto/wdk-wallet').TransactionResult} TransactionResult */
 /** @typedef {import('@tetherto/wdk-wallet').TransferOptions} TransferOptions */

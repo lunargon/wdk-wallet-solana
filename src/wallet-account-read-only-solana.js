@@ -135,7 +135,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
   /**
    * Returns the account's native SOL balance.
    *
-   * @override
    * @returns {Promise<bigint>} The sol balance (in lamports).
    */
   async getBalance () {
@@ -308,7 +307,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
   /**
    * Quotes the costs of a transfer operation.
    *
-   * @override
    * @param {TransferOptions} options - The transfer's options.
    * @returns {Promise<Omit<TransferResult, 'hash'>>} The transfer's quotes.
    */
@@ -516,7 +514,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
   /**
    * Verifies a message's signature.
    *
-   * @override
    * @param {string} message - The original message.
    * @param {string} signature - The signature to verify.
    * @returns {Promise<boolean>} True if the signature is valid.
