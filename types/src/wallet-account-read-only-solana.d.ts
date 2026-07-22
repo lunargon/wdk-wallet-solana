@@ -189,4 +189,4 @@ export type SolanaWalletConfig = {
      */
     transactionMaxFee?: number | bigint;
 };
-import { WalletAccountReadOnly } from '@tetherto/wdk-wallet';
+import { WalletAccountReadOnly } from "@tetherto/wdk-wallet";
