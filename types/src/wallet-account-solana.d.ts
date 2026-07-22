@@ -137,7 +137,6 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      * @returns {Promise<WalletAccountReadOnlySolana>} The read-only account.
      */
     toReadOnlyAccount(): Promise<WalletAccountReadOnlySolana>;
-    _solanaReadOnlyAccount: WalletAccountReadOnlySolana;
     /**
      * Disposes the wallet account, erasing the private key from the memory.
      */
@@ -159,4 +158,4 @@ export type KeyPairSigner = import("@solana/signers").KeyPairSigner;
 export type SolanaTransaction = import("./wallet-account-read-only-solana.js").SolanaTransaction;
 export type SolanaWalletConfig = import("./wallet-account-read-only-solana.js").SolanaWalletConfig;
 export type FullySignedTransaction = import("@solana/transactions").FullySignedTransaction;
-import WalletAccountReadOnlySolana from './wallet-account-read-only-solana.js';
+import WalletAccountReadOnlySolana from "./wallet-account-read-only-solana.js";

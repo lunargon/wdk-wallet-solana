@@ -165,7 +165,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
   /**
    * Returns the account balance for a specific SPL token.
    *
-   * @override
    * @param {string} tokenAddress - The smart contract address of the token.
    * @returns {Promise<bigint>} The token balance (in base unit).
    */

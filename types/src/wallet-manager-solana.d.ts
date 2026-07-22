@@ -40,10 +40,16 @@ export default class WalletManagerSolana extends WalletManager {
      * @returns {Promise<WalletAccountSolana>} The account.
      */
     getAccountByPath(path: string): Promise<WalletAccountSolana>;
+    /**
+     * Returns the current fee rates.
+     *
+     * @returns {Promise<FeeRates>} The fee rates (in lamports).
+     */
+    getFeeRates(): Promise<FeeRates>;
 }
 export type SolanaRpc = ReturnType<typeof import("@solana/rpc").createSolanaRpc>;
 export type Commitment = import("@solana/rpc-types").Commitment;
 export type FeeRates = import("@tetherto/wdk-wallet").FeeRates;
 export type SolanaWalletConfig = import("./wallet-account-solana.js").SolanaWalletConfig;
-import WalletManager from '@tetherto/wdk-wallet';
-import WalletAccountSolana from './wallet-account-solana.js';
+import WalletManager from "@tetherto/wdk-wallet";
+import WalletAccountSolana from "./wallet-account-solana.js";
