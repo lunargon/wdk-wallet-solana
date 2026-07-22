@@ -167,6 +167,35 @@ describe('WalletAccountReadOnlySolana', () => {
       expect(mockRpc.getTokenAccountBalance).toHaveBeenCalledTimes(1)
     })
 
+    it('should return token balance when ATA exists (TOKEN_2022_PROGRAM)', async () => {
+      mockRpc.getAccountInfo.mockReturnValueOnce({
+        send: jest.fn().mockResolvedValue({
+          value: {
+            owner: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+            lamports: 2039280n,
+            data: [Buffer.alloc(165).toString('base64'), 'base64']
+          }
+        })
+      })
+
+      mockRpc.getTokenAccountBalance.mockReturnValue({
+        send: jest.fn().mockResolvedValue({
+          value: {
+            amount: '5000000',
+            decimals: 6,
+            uiAmount: 5.0,
+            uiAmountString: '5.0'
+          }
+        })
+      })
+
+      const balance = await readOnlyAccount.getTokenBalance(MOCK_TOKEN_MINT)
+
+      expect(balance).toBe(5000000n)
+      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(1)
+      expect(mockRpc.getTokenAccountBalance).toHaveBeenCalledTimes(1)
+    })
+
     it('should return zero when ATA does not exist', async () => {
       mockRpc.getAccountInfo
         .mockReturnValueOnce({

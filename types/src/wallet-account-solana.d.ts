@@ -1,4 +1,4 @@
-/** @implements {IWalletAccount} */
+/** @implements {IWalletAccount<FullySignedTransaction>} */
 export default class WalletAccountSolana extends WalletAccountReadOnlySolana implements IWalletAccount<FullySignedTransaction> {
     /**
      * Creates a new solana wallet account.
@@ -100,6 +100,8 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     sendTransaction(tx: SolanaTransaction | FullySignedTransaction): Promise<TransactionResult>;
     /** @private */
+    private _sendTransactionMessage;
+    /** @private */
     private _broadcastSignedTransaction;
     /**
      * Determines whether a value is an already-signed transaction (as returned by `signTransaction`)
@@ -119,26 +121,16 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     protected _getSignedTransactionFee(signedTransaction: FullySignedTransaction): Promise<bigint>;
     /** @private */
-    private _sendTransactionMessage;
-    /** @private */
     private _prepareTransactionMessage;
     /**
      * Transfers a token to another address.
      *
-     * @param {import('./wallet-account-read-only-solana.js').SolanaTransferOptions} options - The transfer's options.
+     * @param {TransferOptions} options - The transfer's options.
      * @returns {Promise<TransferResult>} The transfer's result.
      * @throws {Error} If the transfer's cost exceeds the maximum transfer fee option.
      * @note only SPL tokens - won't work for native SOL
      */
-    transfer(options: import("./wallet-account-read-only-solana.js").SolanaTransferOptions): Promise<TransferResult>;
-    /**
-     * Burns a token from the account.
-     *
-     * @param {string} token - The SPL token mint address.
-     * @param {number | bigint} amount - The amount to burn.
-     * @returns {Promise<TransactionResult>} The transaction's result.
-     */
-    burn(token: string, amount: number | bigint): Promise<TransactionResult>;
+    transfer(options: TransferOptions): Promise<TransferResult>;
     /**
      * Returns a read-only copy of the account.
      *
@@ -158,7 +150,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     private _getSigner;
 }
-export type IWalletAccount<TSignedTransaction> = import("@tetherto/wdk-wallet").IWalletAccount<TSignedTransaction>;
+export type IWalletAccount = import("@tetherto/wdk-wallet").IWalletAccount;
 export type KeyPair = import("@tetherto/wdk-wallet").KeyPair;
 export type TransactionResult = import("@tetherto/wdk-wallet").TransactionResult;
 export type TransferOptions = import("@tetherto/wdk-wallet").TransferOptions;

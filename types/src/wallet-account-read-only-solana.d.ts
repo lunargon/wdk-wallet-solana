@@ -34,10 +34,10 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
     /**
      * Resolves the token program for a given mint (TOKEN_PROGRAM_ADDRESS or TOKEN_2022_PROGRAM_ADDRESS).
      * @protected
-     * @param {string} mint - The mint address.
-     * @returns {Promise<string>} The program address.
+     * @param {Address} mint - The mint address.
+     * @returns {Promise<Address>} The program address.
      */
-    protected _getTokenProgram(mint: string): Promise<string>;
+    protected _getTokenProgram(mint: Address): Promise<Address>;
     /**
      * Returns the account balances for a list of SPL tokens.
      *
@@ -53,13 +53,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     quoteSendTransaction(tx: SolanaTransaction): Promise<Omit<TransactionResult, "hash">>;
     /**
-     * Quotes the costs of a transfer operation.
-     *
-     * @param {SolanaTransferOptions} options - The transfer's options.
-     * @returns {Promise<Omit<TransferResult, 'hash'>>} The transfer's quotes.
-     */
-    quoteTransfer(options: SolanaTransferOptions): Promise<Omit<TransferResult, "hash">>;
-    /**
      * Retrieves a transaction receipt by its signature
      *
      * @param {string} hash - The transaction's hash.
@@ -74,20 +67,10 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @param {string} token - The SPL token mint address (base58-encoded public key).
      * @param {string} recipient - The recipient's wallet address (base58-encoded public key).
      * @param {number | bigint} amount - The amount to transfer in token's base units (must be ≤ 2^64-1).
-     * @param {string} [memo] - Optional memo.
-     * @param {number | bigint} [priorityFee] - Optional priority fee in micro-lamports.
      * @returns {Promise<TransactionMessage>} The constructed transaction message.
+     * @todo Support transfer with memo for tokens that require it.
      */
-    protected _buildSPLTransferTransactionMessage(token: string, recipient: string, amount: number | bigint, memo?: string, priorityFee?: number | bigint): Promise<TransactionMessage>;
-    /**
-     * Builds a transaction message for SPL token burn.
-     *
-     * @protected
-     * @param {string} token - The SPL token mint address (base58-encoded public key).
-     * @param {number | bigint} amount - The amount to burn in token's base units (must be ≤ 2^64-1).
-     * @returns {Promise<TransactionMessage>} The constructed transaction message.
-     */
-    protected _buildSPLBurnTransactionMessage(token: string, amount: number | bigint): Promise<TransactionMessage>;
+    protected _buildSPLTransferTransactionMessage(token: string, recipient: string, amount: number | bigint): Promise<TransactionMessage>;
     /**
      * Builds a transaction message for native SOL transfer.
      * Creates a transfer instruction for sending SOL.
@@ -95,11 +78,9 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @protected
      * @param {string} to - The recipient's address.
      * @param {number | bigint} value - The amount of SOL to send (in lamports).
-     * @param {string} [memo] - Optional memo.
-     * @param {number | bigint} [priorityFee] - Optional priority fee in micro-lamports.
      * @returns {Promise<TransactionMessage>} The constructed transaction message.
      */
-    protected _buildNativeTransferTransactionMessage(to: string, value: number | bigint, memo?: string, priorityFee?: number | bigint): Promise<TransactionMessage>;
+    protected _buildNativeTransferTransactionMessage(to: string, value: number | bigint): Promise<TransactionMessage>;
     /**
      * Calculates the fee for a given transaction message.
      *
@@ -116,14 +97,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      * @returns {Promise<bigint>} The calculated transaction fee in lamports.
      */
     protected _getFeeForBase64Message(base64EncodedMessage: string): Promise<bigint>;
-    /**
-     * Verifies a message's signature.
-     *
-     * @param {string} message - The original message.
-     * @param {string} signature - The signature to verify.
-     * @returns {Promise<boolean>} True if the signature is valid.
-     */
-    verify(message: string, signature: string): Promise<boolean>;
     /**
      * Ensures the transaction has either a blockhash lifetime or a durable nonce lifetime.
      *
@@ -150,10 +123,7 @@ export type FullySignedTransaction = import("@solana/transactions").FullySignedT
 export type SolanaRpc = ReturnType<typeof import("@solana/rpc").createSolanaRpc>;
 export type SolanaTransactionReceipt = ReturnType<import("@solana/rpc-api").SolanaRpcApi["getTransaction"]>;
 export type Commitment = import("@solana/rpc-types").Commitment;
-export type SolanaTransferOptions = TransferOptions & {
-    memo?: string;
-    priorityFee?: number | bigint;
-};
+export type Address = import("@solana/addresses").Address;
 export type SimpleSolanaTransaction = {
     /**
      * - The recipient's Solana address.
@@ -163,14 +133,6 @@ export type SimpleSolanaTransaction = {
      * - The amount of SOL to send in lamports (1 SOL = 1,000,000,000 lamports).
      */
     value: number | bigint;
-    /**
-     * - Optional memo.
-     */
-    memo?: string;
-    /**
-     * - Optional priority fee in micro-lamports.
-     */
-    priorityFee?: number | bigint;
 };
 export type SolanaTransaction = SimpleSolanaTransaction | TransactionMessage;
 export type SolanaWalletConfig = {
