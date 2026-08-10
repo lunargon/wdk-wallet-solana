@@ -54,7 +54,6 @@ const TOKEN_2022_PROGRAM_ADDRESS = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCX
 /** @typedef {ReturnType<typeof import('@solana/rpc').createSolanaRpc>} SolanaRpc */
 /** @typedef {ReturnType<import('@solana/rpc-api').SolanaRpcApi['getTransaction']>} SolanaTransactionReceipt */
 /** @typedef {import('@solana/rpc-types').Commitment} Commitment */
-/** @typedef {import('@solana/addresses').Address} Address */
 
 /**
  * @typedef {Object} SimpleSolanaTransaction
@@ -74,10 +73,6 @@ const TOKEN_2022_PROGRAM_ADDRESS = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCX
  * @property {number} [retries] - If set and if 'provider' is a list of urls, the number of additional retry attempts after the initial call fails. Total attempts = `1 + retries`. For example, `retries: 3` with 4 providers will try each provider once before throwing. If `retries` exceeds the number of providers, the failover will loop back and retry already-failed providers in round-robin order (default: 3).
  * @property {number | bigint} [transferMaxFee] - Maximum allowed fee in lamports for transfer operations.
  * @property {number | bigint} [transactionMaxFee] - The maximum fee amount for sendTransaction and signTransaction operations.
- */
-
-/**
- * @typedef {TransferOptions & { memo?: string, priorityFee?: number | bigint }} SolanaTransferOptions
  */
 
 const MAX_U64 = 0xffffffffffffffffn
