@@ -51,7 +51,6 @@ describe('WalletAccountSolana', () => {
       provider: TEST_RPC_URL,
       commitment: 'processed'
     })
-    jest.spyOn(WalletAccountSolana.prototype, '_getTokenProgram').mockResolvedValue('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 
     account = await wallet.getAccount(0)
   })
@@ -961,7 +960,10 @@ describe('WalletAccountSolana', () => {
 
         mockRpc.getAccountInfo.mockReturnValue({
           send: jest.fn().mockResolvedValue({
-            value: { data: mintData }
+            value: {
+              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              data: { parsed: { info: { decimals: 6 } } }
+            }
           })
         })
         mockRpc.getFeeForMessage.mockReturnValue({
@@ -1009,7 +1011,10 @@ describe('WalletAccountSolana', () => {
 
         mockRpc.getAccountInfo.mockReturnValue({
           send: jest.fn().mockResolvedValue({
-            value: { data: mintData }
+            value: {
+              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              data: { parsed: { info: { decimals: 6 } } }
+            }
           })
         })
         mockRpc.getFeeForMessage.mockReturnValue({
@@ -1040,7 +1045,10 @@ describe('WalletAccountSolana', () => {
 
         mockRpc.getAccountInfo.mockReturnValue({
           send: jest.fn().mockResolvedValue({
-            value: { data: mintData }
+            value: {
+              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              data: { parsed: { info: { decimals: 6 } } }
+            }
           })
         })
         mockRpc.getFeeForMessage.mockReturnValue({
@@ -1071,7 +1079,10 @@ describe('WalletAccountSolana', () => {
         const mintData = new Uint8Array(165)
         mockRpc.getAccountInfo.mockReturnValue({
           send: jest.fn().mockResolvedValue({
-            value: { data: mintData }
+            value: {
+              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              data: { parsed: { info: { decimals: 6 } } }
+            }
           })
         })
         mockRpc.getFeeForMessage.mockReturnValue({

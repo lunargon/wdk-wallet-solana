@@ -52,7 +52,6 @@ describe('WalletAccountReadOnlySolana', () => {
 
     readOnlyAccount._rpc = mockRpc
     readOnlyAccount._commitment = 'confirmed'
-    jest.spyOn(readOnlyAccount, '_getTokenProgram').mockResolvedValue('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
   })
 
   describe('Constructor', () => {
@@ -139,15 +138,25 @@ describe('WalletAccountReadOnlySolana', () => {
     const MOCK_TOKEN_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'
 
     it('should return token balance when ATA exists (TOKEN_PROGRAM)', async () => {
-      mockRpc.getAccountInfo.mockReturnValueOnce({
-        send: jest.fn().mockResolvedValue({
-          value: {
-            owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-            lamports: 2039280n,
-            data: [Buffer.alloc(165).toString('base64'), 'base64']
-          }
+      mockRpc.getAccountInfo
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: {
+              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              lamports: 2039280n,
+              data: { parsed: { info: { decimals: 6 } } }
+            }
+          })
         })
-      })
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: {
+              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              lamports: 2039280n,
+              data: [Buffer.alloc(165).toString('base64'), 'base64']
+            }
+          })
+        })
 
       mockRpc.getTokenAccountBalance.mockReturnValue({
         send: jest.fn().mockResolvedValue({
@@ -161,22 +170,39 @@ describe('WalletAccountReadOnlySolana', () => {
       })
 
       const balance = await readOnlyAccount.getTokenBalance(MOCK_TOKEN_MINT)
+      const [expectedAta] = await findAssociatedTokenPda({
+        mint: address(MOCK_TOKEN_MINT),
+        owner: address(TEST_ADDRESS),
+        tokenProgram: TOKEN_PROGRAM_ADDRESS
+      })
 
       expect(balance).toBe(1000000n)
-      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(1)
-      expect(mockRpc.getTokenAccountBalance).toHaveBeenCalledTimes(1)
+      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(2)
+      expect(mockRpc.getTokenAccountBalance).toHaveBeenCalledWith(expectedAta, { commitment: 'confirmed' })
     })
 
     it('should return token balance when ATA exists (TOKEN_2022_PROGRAM)', async () => {
-      mockRpc.getAccountInfo.mockReturnValueOnce({
-        send: jest.fn().mockResolvedValue({
-          value: {
-            owner: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
-            lamports: 2039280n,
-            data: [Buffer.alloc(165).toString('base64'), 'base64']
-          }
+      const token2022Program = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb')
+
+      mockRpc.getAccountInfo
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: {
+              owner: token2022Program,
+              lamports: 2039280n,
+              data: { parsed: { info: { decimals: 6 } } }
+            }
+          })
         })
-      })
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: {
+              owner: token2022Program,
+              lamports: 2039280n,
+              data: [Buffer.alloc(165).toString('base64'), 'base64']
+            }
+          })
+        })
 
       mockRpc.getTokenAccountBalance.mockReturnValue({
         send: jest.fn().mockResolvedValue({
@@ -190,16 +216,36 @@ describe('WalletAccountReadOnlySolana', () => {
       })
 
       const balance = await readOnlyAccount.getTokenBalance(MOCK_TOKEN_MINT)
+      const [expectedAta] = await findAssociatedTokenPda({
+        mint: address(MOCK_TOKEN_MINT),
+        owner: address(TEST_ADDRESS),
+        tokenProgram: token2022Program
+      })
 
       expect(balance).toBe(5000000n)
-      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(1)
-      expect(mockRpc.getTokenAccountBalance).toHaveBeenCalledTimes(1)
+      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(2)
+      expect(mockRpc.getTokenAccountBalance).toHaveBeenCalledWith(expectedAta, { commitment: 'confirmed' })
+    })
+
+    it('should throw error when token mint does not exist on-chain', async () => {
+      mockRpc.getAccountInfo.mockReturnValueOnce({
+        send: jest.fn().mockResolvedValue({ value: null })
+      })
+
+      await expect(
+        readOnlyAccount.getTokenBalance(MOCK_TOKEN_MINT)
+      ).rejects.toThrow(`Token mint not found: ${MOCK_TOKEN_MINT}`)
     })
 
     it('should return zero when ATA does not exist', async () => {
       mockRpc.getAccountInfo
         .mockReturnValueOnce({
-          send: jest.fn().mockResolvedValue({ value: null })
+          send: jest.fn().mockResolvedValue({
+            value: {
+              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              lamports: 2039280n
+            }
+          })
         })
         .mockReturnValueOnce({
           send: jest.fn().mockResolvedValue({ value: null })
@@ -208,7 +254,7 @@ describe('WalletAccountReadOnlySolana', () => {
       const balance = await readOnlyAccount.getTokenBalance(MOCK_TOKEN_MINT)
 
       expect(balance).toBe(0n)
-      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(1)
+      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(2)
       expect(mockRpc.getTokenAccountBalance).not.toHaveBeenCalled()
     })
 
@@ -348,14 +394,14 @@ describe('WalletAccountReadOnlySolana', () => {
 
       expect(usdtBalance).toBe(1000000n)
       expect(usdcBalance).toBe(5000000n)
-      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(2)
+      expect(mockRpc.getAccountInfo).toHaveBeenCalledTimes(4)
       expect(mockRpc.getAccountInfo).toHaveBeenNthCalledWith(
-        1,
+        2,
         usdtAta,
         expect.objectContaining({ commitment: 'confirmed', encoding: 'base64' })
       )
       expect(mockRpc.getAccountInfo).toHaveBeenNthCalledWith(
-        2,
+        4,
         usdcAta,
         expect.objectContaining({ commitment: 'confirmed', encoding: 'base64' })
       )
@@ -377,76 +423,120 @@ describe('WalletAccountReadOnlySolana', () => {
     }
 
     it('should return balances for multiple tokens', async () => {
-      mockRpc.getMultipleAccounts.mockReturnValue({
-        send: jest.fn().mockResolvedValue({
-          value: [
-            { data: [createTokenAccountData(1000000), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n },
-            { data: [createTokenAccountData(5000000), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n }
-          ]
+      mockRpc.getMultipleAccounts
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+              { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }
+            ]
+          })
         })
-      })
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { data: [createTokenAccountData(1000000), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n },
+              { data: [createTokenAccountData(5000000), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n }
+            ]
+          })
+        })
 
       const balances = await readOnlyAccount.getTokenBalances([MOCK_TOKEN_MINT_1, MOCK_TOKEN_MINT_2])
 
       expect(balances[MOCK_TOKEN_MINT_1]).toBe(1000000n)
       expect(balances[MOCK_TOKEN_MINT_2]).toBe(5000000n)
-      expect(mockRpc.getMultipleAccounts).toHaveBeenCalledTimes(1)
+      expect(mockRpc.getMultipleAccounts).toHaveBeenCalledTimes(2)
     })
 
     it('should return 0n for tokens where ATA does not exist', async () => {
-      mockRpc.getMultipleAccounts.mockReturnValue({
-        send: jest.fn().mockResolvedValue({
-          value: [null, null]
+      mockRpc.getMultipleAccounts
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+              { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }
+            ]
+          })
         })
-      })
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [null, null]
+          })
+        })
 
       const balances = await readOnlyAccount.getTokenBalances([MOCK_TOKEN_MINT_1, MOCK_TOKEN_MINT_2])
 
       expect(balances[MOCK_TOKEN_MINT_1]).toBe(0n)
       expect(balances[MOCK_TOKEN_MINT_2]).toBe(0n)
+      expect(mockRpc.getMultipleAccounts).toHaveBeenCalledTimes(2)
     })
 
     it('should handle mix of existing and non-existing ATAs', async () => {
-      mockRpc.getMultipleAccounts.mockReturnValue({
-        send: jest.fn().mockResolvedValue({
-          value: [
-            { data: [createTokenAccountData(1000000), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n },
-            null
-          ]
+      mockRpc.getMultipleAccounts
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+              { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }
+            ]
+          })
         })
-      })
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { data: [createTokenAccountData(1000000), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n },
+              null
+            ]
+          })
+        })
 
       const balances = await readOnlyAccount.getTokenBalances([MOCK_TOKEN_MINT_1, MOCK_TOKEN_MINT_2])
 
       expect(balances[MOCK_TOKEN_MINT_1]).toBe(1000000n)
       expect(balances[MOCK_TOKEN_MINT_2]).toBe(0n)
+      expect(mockRpc.getMultipleAccounts).toHaveBeenCalledTimes(2)
     })
 
     it('should deduplicate token addresses', async () => {
-      mockRpc.getMultipleAccounts.mockReturnValue({
-        send: jest.fn().mockResolvedValue({
-          value: [
-            { data: [createTokenAccountData(1000000), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n }
-          ]
+      mockRpc.getMultipleAccounts
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }
+            ]
+          })
         })
-      })
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { data: [createTokenAccountData(1000000), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n }
+            ]
+          })
+        })
 
       const balances = await readOnlyAccount.getTokenBalances([MOCK_TOKEN_MINT_1, MOCK_TOKEN_MINT_1, MOCK_TOKEN_MINT_1])
 
       expect(Object.keys(balances)).toHaveLength(1)
       expect(balances[MOCK_TOKEN_MINT_1]).toBe(1000000n)
-      const callArgs = mockRpc.getMultipleAccounts.mock.calls[0]
-      expect(callArgs[0]).toHaveLength(1)
+      expect(mockRpc.getMultipleAccounts).toHaveBeenCalledTimes(2)
     })
 
     it('should handle single token address', async () => {
-      mockRpc.getMultipleAccounts.mockReturnValue({
-        send: jest.fn().mockResolvedValue({
-          value: [
-            { data: [createTokenAccountData(999999), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n }
-          ]
+      mockRpc.getMultipleAccounts
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }
+            ]
+          })
         })
-      })
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [
+              { data: [createTokenAccountData(999999), 'base64'], owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', lamports: 2039280n }
+            ]
+          })
+        })
 
       const balances = await readOnlyAccount.getTokenBalances([MOCK_TOKEN_MINT_1])
 
@@ -499,11 +589,17 @@ describe('WalletAccountReadOnlySolana', () => {
     })
 
     it('should pass commitment and encoding to getMultipleAccounts', async () => {
-      mockRpc.getMultipleAccounts.mockReturnValue({
-        send: jest.fn().mockResolvedValue({
-          value: [null]
+      mockRpc.getMultipleAccounts
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [{ owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }]
+          })
         })
-      })
+        .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: [null]
+          })
+        })
 
       await readOnlyAccount.getTokenBalances([MOCK_TOKEN_MINT_1])
 
@@ -885,7 +981,7 @@ describe('WalletAccountReadOnlySolana', () => {
             value: {
               owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
               lamports: 2039280n,
-              data: [Buffer.alloc(165).toString('base64'), 'base64']
+              data: { parsed: { info: { decimals: 6 } } }
             }
           })
         })
@@ -895,15 +991,6 @@ describe('WalletAccountReadOnlySolana', () => {
               owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
               lamports: 2039280n,
               data: [Buffer.alloc(165).toString('base64'), 'base64']
-            }
-          })
-        })
-        .mockReturnValueOnce({
-          send: jest.fn().mockResolvedValue({
-            value: {
-              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-              lamports: 2039280n,
-              data: [Buffer.alloc(82).toString('base64'), 'base64']
             }
           })
         })
@@ -924,25 +1011,16 @@ describe('WalletAccountReadOnlySolana', () => {
     it('should quote fee when recipient ATA does not exist', async () => {
       mockRpc.getAccountInfo
         .mockReturnValueOnce({
+          send: jest.fn().mockResolvedValue({
+            value: {
+              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              lamports: 2039280n,
+              data: { parsed: { info: { decimals: 6 } } }
+            }
+          })
+        })
+        .mockReturnValueOnce({
           send: jest.fn().mockResolvedValue({ value: null })
-        })
-        .mockReturnValueOnce({
-          send: jest.fn().mockResolvedValue({
-            value: {
-              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-              lamports: 2039280n,
-              data: [Buffer.alloc(165).toString('base64'), 'base64']
-            }
-          })
-        })
-        .mockReturnValueOnce({
-          send: jest.fn().mockResolvedValue({
-            value: {
-              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-              lamports: 2039280n,
-              data: [Buffer.alloc(82).toString('base64'), 'base64']
-            }
-          })
         })
 
       mockRpc.getFeeForMessage.mockReturnValue({
@@ -965,7 +1043,7 @@ describe('WalletAccountReadOnlySolana', () => {
             value: {
               owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
               lamports: 2039280n,
-              data: [Buffer.alloc(165).toString('base64'), 'base64']
+              data: { parsed: { info: { decimals: 6 } } }
             }
           })
         })
@@ -975,15 +1053,6 @@ describe('WalletAccountReadOnlySolana', () => {
               owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
               lamports: 2039280n,
               data: [Buffer.alloc(165).toString('base64'), 'base64']
-            }
-          })
-        })
-        .mockReturnValueOnce({
-          send: jest.fn().mockResolvedValue({
-            value: {
-              owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-              lamports: 2039280n,
-              data: [Buffer.alloc(82).toString('base64'), 'base64']
             }
           })
         })
@@ -1021,14 +1090,11 @@ describe('WalletAccountReadOnlySolana', () => {
     it('should throw error when getFeeForMessage returns null', async () => {
       mockRpc.getAccountInfo
         .mockReturnValueOnce({
-          send: jest.fn().mockResolvedValue({ value: null })
-        })
-        .mockReturnValueOnce({
           send: jest.fn().mockResolvedValue({
             value: {
               owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
               lamports: 2039280n,
-              data: [Buffer.alloc(165).toString('base64'), 'base64']
+              data: { parsed: { info: { decimals: 6 } } }
             }
           })
         })
@@ -1037,7 +1103,7 @@ describe('WalletAccountReadOnlySolana', () => {
             value: {
               owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
               lamports: 2039280n,
-              data: [Buffer.alloc(82).toString('base64'), 'base64']
+              data: [Buffer.alloc(165).toString('base64'), 'base64']
             }
           })
         })

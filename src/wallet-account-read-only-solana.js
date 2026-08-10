@@ -37,7 +37,8 @@ import { getTransferSolInstruction } from '@solana-program/system'
 import {
   findAssociatedTokenPda,
   getCreateAssociatedTokenIdempotentInstruction,
-  getTransferInstruction,
+  getTransferCheckedInstruction,
+  getMintDecoder,
   TOKEN_PROGRAM_ADDRESS
 } from '@solana-program/token'
 import { isSignature, verifySignature } from '@solana/keys'
@@ -73,6 +74,10 @@ const TOKEN_2022_PROGRAM_ADDRESS = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCX
  * @property {number} [retries] - If set and if 'provider' is a list of urls, the number of additional retry attempts after the initial call fails. Total attempts = `1 + retries`. For example, `retries: 3` with 4 providers will try each provider once before throwing. If `retries` exceeds the number of providers, the failover will loop back and retry already-failed providers in round-robin order (default: 3).
  * @property {number | bigint} [transferMaxFee] - Maximum allowed fee in lamports for transfer operations.
  * @property {number | bigint} [transactionMaxFee] - The maximum fee amount for sendTransaction and signTransaction operations.
+ */
+
+/**
+ * @typedef {TransferOptions & { memo?: string, priorityFee?: number | bigint }} SolanaTransferOptions
  */
 
 const MAX_U64 = 0xffffffffffffffffn
@@ -150,12 +155,14 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
 
   /**
    * Resolves the token program for a given mint (TOKEN_PROGRAM_ADDRESS or TOKEN_2022_PROGRAM_ADDRESS).
+   *
    * @protected
-   * @param {Address} mint - The mint address.
-   * @returns {Promise<Address>} The program address.
+   * @param {string} mint - The mint address.
+   * @returns {Promise<string>} The program address.
+   * @throws {Error} If the mint account does not exist on-chain.
    */
   async _getTokenProgram (mint) {
-    const mintInfo = await this._rpc.getAccountInfo(mint, { encoding: 'jsonParsed' }).send()
+    const mintInfo = await this._rpc.getAccountInfo(address(mint), { encoding: 'jsonParsed' }).send()
     if (!mintInfo.value) {
       throw new Error(`Token mint not found: ${mint}`)
     }
@@ -220,22 +227,43 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
     const uniqueTokenAddresses = [...new Set(tokenAddresses)]
     const mints = uniqueTokenAddresses.map(t => address(t))
 
-    const atas = await Promise.all(
-      mints.map(async (mint) => {
-        const tokenProgram = await this._getTokenProgram(mint)
+    const BATCH_SIZE = 100
+    const atas = []
+
+    for (let offset = 0; offset < mints.length; offset += BATCH_SIZE) {
+      const batchMints = mints.slice(offset, offset + BATCH_SIZE)
+      const { value: mintAccounts } = await this._rpc
+        .getMultipleAccounts(batchMints, {
+          commitment: this._commitment,
+          encoding: 'jsonParsed'
+        })
+        .send()
+
+      for (let i = 0; i < batchMints.length; i++) {
+        const mint = batchMints[i]
+        const mintAccount = mintAccounts[i]
+
+        if (!mintAccount) {
+          throw new Error(`Token mint not found: ${mint}`)
+        }
+
+        const tokenProgram = address(
+          mintAccount.owner === TOKEN_2022_PROGRAM_ADDRESS
+            ? TOKEN_2022_PROGRAM_ADDRESS
+            : TOKEN_PROGRAM_ADDRESS
+        )
+
         const [ata] = await findAssociatedTokenPda({
           mint,
           owner: ownerAddress,
           tokenProgram
         })
-        return ata
-      })
-    )
+        atas.push(ata)
+      }
+    }
 
     const balances = {}
     const base64Encoder = getBase64Encoder()
-    // Solana's getMultipleAccounts RPC enforces a 100-pubkey limit per call.
-    const BATCH_SIZE = 100
 
     for (let offset = 0; offset < atas.length; offset += BATCH_SIZE) {
       const batchAtas = atas.slice(offset, offset + BATCH_SIZE)
@@ -371,7 +399,34 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
     const tokenMint = address(token)
     const recipientPublicKey = address(recipient)
 
-    const tokenProgram = await this._getTokenProgram(tokenMint)
+    const mintInfo = await this._rpc
+      .getAccountInfo(tokenMint, {
+        commitment: this._commitment,
+        encoding: 'jsonParsed'
+      })
+      .send()
+
+    if (!mintInfo.value) {
+      throw new Error(`Token mint not found: ${token}`)
+    }
+
+    const tokenProgram = address(
+      mintInfo.value.owner === TOKEN_2022_PROGRAM_ADDRESS
+        ? TOKEN_2022_PROGRAM_ADDRESS
+        : TOKEN_PROGRAM_ADDRESS
+    )
+
+    let decimals
+    if (mintInfo.value.data && typeof mintInfo.value.data === 'object' && mintInfo.value.data.parsed) {
+      decimals = mintInfo.value.data.parsed.info.decimals
+    } else if (Array.isArray(mintInfo.value.data)) {
+      const base64Encoder = getBase64Encoder()
+      const bytes = base64Encoder.encode(mintInfo.value.data[0])
+      const mintDecoder = getMintDecoder()
+      decimals = mintDecoder.decode(bytes).decimals
+    } else {
+      throw new Error(`Unable to parse decimals for token mint: ${token}`)
+    }
 
     // Get associated token addresses
     const [fromATA] = await findAssociatedTokenPda({
@@ -408,13 +463,14 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
     }
 
     // Add transfer instruction
-    const transferInstruction = getTransferInstruction(
+    const transferInstruction = getTransferCheckedInstruction(
       {
         source: fromATA,
         mint: tokenMint,
         destination: toATA,
         authority: ownerPublicKey,
-        amount: BigInt(amount)
+        amount: BigInt(amount),
+        decimals
       },
       { programAddress: tokenProgram }
     )

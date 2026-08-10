@@ -49,6 +49,7 @@ curve.hashes.sha512 = sha512
 
 /** @typedef {import('./wallet-account-read-only-solana.js').SolanaTransaction} SolanaTransaction */
 /** @typedef {import('./wallet-account-read-only-solana.js').SolanaWalletConfig} SolanaWalletConfig */
+/** @typedef {import('./wallet-account-read-only-solana.js').SolanaTransferOptions} SolanaTransferOptions */
 
 /** @typedef {import('@solana/transactions').FullySignedTransaction} FullySignedTransaction */
 
@@ -366,7 +367,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
   /**
    * Transfers a token to another address.
    *
-   * @param {TransferOptions} options - The transfer's options.
+   * @param {SolanaTransferOptions} options - The transfer's options.
    * @returns {Promise<TransferResult>} The transfer's result.
    * @throws {Error} If the transfer's cost exceeds the maximum transfer fee option.
    * @note only SPL tokens - won't work for native SOL
@@ -414,10 +415,6 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana {
   dispose () {
     if (this._rawPrivateKey) {
       sodium_memzero(this._rawPrivateKey)
-    }
-
-    if (this._signer?.keyPair?.privateKey) {
-      sodium_memzero(this._signer.keyPair.privateKey)
     }
 
     this._rawPrivateKey = undefined
