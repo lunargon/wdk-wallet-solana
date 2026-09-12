@@ -17,13 +17,6 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     protected _config: Omit<SolanaWalletConfig, "transferMaxFee" | "transactionMaxFee">;
     /**
-     * A Solana RPC client for HTTP requests.
-     *
-     * @protected
-     * @type {SolanaRpc | undefined}
-     */
-    protected _rpc: SolanaRpc | undefined;
-    /**
      * The commitment level for querying transaction and account states.
      * Determines the level of finality required before returning results.
      *
@@ -32,25 +25,21 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     protected _commitment: Commitment;
     /**
-     * Returns the account's native SOL balance.
+     * A Solana RPC client for HTTP requests.
      *
-     * @returns {Promise<bigint>} The sol balance (in lamports).
+     * @protected
+     * @type {SolanaRpc | undefined}
      */
-    getBalance(): Promise<bigint>;
+    protected _rpc: SolanaRpc | undefined;
     /**
      * Resolves the token program for a given mint (TOKEN_PROGRAM_ADDRESS or TOKEN_2022_PROGRAM_ADDRESS).
-     * @protected
-     * @param {Address} mint - The mint address.
-     * @returns {Promise<Address>} The program address.
-     */
-    protected _getTokenProgram(mint: Address): Promise<Address>;
-    /**
-     * Returns the account balance for a specific SPL token.
      *
-     * @param {string} tokenAddress - The smart contract address of the token.
-     * @returns {Promise<bigint>} The token balance (in base unit).
+     * @protected
+     * @param {string} mint - The mint address.
+     * @returns {Promise<string>} The program address.
+     * @throws {Error} If the mint account does not exist on-chain.
      */
-    getTokenBalance(tokenAddress: string): Promise<bigint>;
+    protected _getTokenProgram(mint: string): Promise<string>;
     /**
      * Returns the account balances for a list of SPL tokens.
      *
@@ -61,24 +50,42 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
     /**
      * Quotes the costs of a send transaction operation.
      *
-     * @param {SolanaTransaction} tx - The transaction.
+     * @param {SolanaTransaction} tx - The transaction: a native transfer object, a transaction
+     *   message, or a base64-encoded serialized transaction.
      * @returns {Promise<Omit<TransactionResult, 'hash'>>} The transaction's quotes.
      */
     quoteSendTransaction(tx: SolanaTransaction): Promise<Omit<TransactionResult, "hash">>;
     /**
-     * Quotes the costs of a transfer operation.
-     *
-     * @param {TransferOptions} options - The transfer's options.
-     * @returns {Promise<Omit<TransferResult, 'hash'>>} The transfer's quotes.
-     */
-    quoteTransfer(options: TransferOptions): Promise<Omit<TransferResult, "hash">>;
-    /**
      * Retrieves a transaction receipt by its signature
      *
+     * @deprecated Use {@link getTransaction} instead, which returns a normalized, finality-based receipt. The raw transaction remains available on its `transaction` property.
      * @param {string} hash - The transaction's hash.
      * @returns {Promise<SolanaTransactionReceipt | null>} — The receipt, or null if the transaction has not been included in a block yet.
      */
     getTransactionReceipt(hash: string): Promise<SolanaTransactionReceipt | null>;
+    /**
+     * Returns a normalized, finality-based receipt for a transaction.
+     *
+     * @param {string} hash - The transaction's signature.
+     * @returns {Promise<TransactionReceipt & SolanaTransactionDetails>} The normalized receipt.
+     * @throws {ValueError} If the hash is not a valid signature.
+     * @throws {NoSuchElementError} If no transaction has been found for the given hash.
+     */
+    getTransaction(hash: string): Promise<TransactionReceipt & SolanaTransactionDetails>;
+    /**
+     * Blocks until a transaction reaches the requested finality target, or times out.
+     *
+     * Note: Solana RPC does not expose a `dropped` state. An evicted or never-landed
+     * signature simply reports no status, which is indistinguishable from a not-yet-seen
+     * transaction and is treated as still-pending. A dropped transaction therefore surfaces
+     * as a {@link TimeoutError} rather than resolving to a `dropped` receipt.
+     *
+     * @param {string} hash - The transaction's signature.
+     * @param {WaitForTransactionOptions} [options] - The wait options.
+     * @returns {Promise<TransactionReceipt & SolanaTransactionDetails>} The terminal receipt for the finality target reached (inspect `success` to tell success from revert).
+     * @throws {TimeoutError} If the target is not reached before the timeout.
+     */
+    waitForTransaction(hash: string, options?: WaitForTransactionOptions): Promise<TransactionReceipt & SolanaTransactionDetails>;
     /**
      * Builds a transaction message for SPL token transfer.
      * Creates instructions for ATA creation (if needed) and token transfer.
@@ -118,13 +125,13 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
      */
     protected _getFeeForBase64Message(base64EncodedMessage: string): Promise<bigint>;
     /**
-     * Verifies a message's signature.
+     * Decodes a base64-encoded serialized transaction.
      *
-     * @param {string} message - The original message.
-     * @param {string} signature - The signature to verify.
-     * @returns {Promise<boolean>} True if the signature is valid.
+     * @protected
+     * @param {string} serializedTransaction - The base64-encoded serialized transaction.
+     * @returns {Transaction} The decoded transaction.
      */
-    verify(message: string, signature: string): Promise<boolean>;
+    protected _decodeSerializedTransaction(serializedTransaction: string): Transaction;
     /**
      * Ensures the transaction has either a blockhash lifetime or a durable nonce lifetime.
      *
@@ -146,12 +153,29 @@ export default class WalletAccountReadOnlySolana extends WalletAccountReadOnly {
 export type TransactionResult = import("@tetherto/wdk-wallet").TransactionResult;
 export type TransferOptions = import("@tetherto/wdk-wallet").TransferOptions;
 export type TransferResult = import("@tetherto/wdk-wallet").TransferResult;
+export type TransactionReceipt = import("@tetherto/wdk-wallet").TransactionReceipt;
+export type WaitForTransactionOptions = import("@tetherto/wdk-wallet").WaitForTransactionOptions;
 export type TransactionMessage = import("@solana/transaction-messages").TransactionMessage;
 export type FullySignedTransaction = import("@solana/transactions").FullySignedTransaction;
+export type Transaction = import("@solana/transactions").Transaction;
 export type SolanaRpc = ReturnType<typeof import("@solana/rpc").createSolanaRpc>;
 export type SolanaTransactionReceipt = ReturnType<import("@solana/rpc-api").SolanaRpcApi["getTransaction"]>;
 export type Commitment = import("@solana/rpc-types").Commitment;
 export type Address = import("@solana/addresses").Address;
+export type SolanaTransferOptions = TransferOptions;
+/**
+ * The Solana-specific fields added to a normalized transaction receipt.
+ */
+export type SolanaTransactionDetails = {
+    /**
+     * - The number of confirmations, or null once the transaction is finalized (or when the node no longer reports a count).
+     */
+    confirmations: number | null;
+    /**
+     * - The native Solana transaction object, or null while the transaction is pending.
+     */
+    transaction: SolanaTransactionReceipt | null;
+};
 export type SimpleSolanaTransaction = {
     /**
      * - The recipient's Solana address.
@@ -162,7 +186,12 @@ export type SimpleSolanaTransaction = {
      */
     value: number | bigint;
 };
-export type SolanaTransaction = SimpleSolanaTransaction | TransactionMessage;
+/**
+ * A transaction to operate on: a native transfer object, a transaction message, or a
+ * base64-encoded serialized transaction (e.g. a swap or bridge payload built by an
+ * external API).
+ */
+export type SolanaTransaction = SimpleSolanaTransaction | TransactionMessage | string;
 export type SolanaWalletConfig = {
     /**
      * - The Solana RPC url. It's also possible to provide an array of urls instead. In such case, connection errors will cause the wallet to automatically fallback on the next provider in the list.
@@ -189,4 +218,4 @@ export type SolanaWalletConfig = {
      */
     transactionMaxFee?: number | bigint;
 };
-import { WalletAccountReadOnly } from "@tetherto/wdk-wallet";
+import { WalletAccountReadOnly } from '@tetherto/wdk-wallet';

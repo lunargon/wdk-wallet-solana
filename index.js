@@ -19,10 +19,15 @@
 /** @typedef {import('@tetherto/wdk-wallet').TransactionResult} TransactionResult */
 /** @typedef {import('@tetherto/wdk-wallet').TransferOptions} TransferOptions */
 /** @typedef {import('@tetherto/wdk-wallet').TransferResult} TransferResult */
+/** @typedef {import('@tetherto/wdk-wallet').Finality} Finality */
+/** @typedef {import('@tetherto/wdk-wallet').TransactionReceipt} TransactionReceipt */
+/** @typedef {import('@tetherto/wdk-wallet').WaitForTransactionTarget} WaitForTransactionTarget */
+/** @typedef {import('@tetherto/wdk-wallet').WaitForTransactionOptions} WaitForTransactionOptions */
 
 /** @typedef {import('./src/wallet-account-read-only-solana.js').SimpleSolanaTransaction} SimpleSolanaTransaction */
 /** @typedef {import('./src/wallet-account-read-only-solana.js').SolanaTransactionReceipt} SolanaTransactionReceipt */
 /** @typedef {import('./src/wallet-account-read-only-solana.js').SolanaTransferOptions} SolanaTransferOptions */
+/** @typedef {import('./src/wallet-account-read-only-solana.js').SolanaTransactionDetails} SolanaTransactionDetails */
 
 /** @typedef {import('./src/wallet-account-solana.js').SolanaTransaction} SolanaTransaction */
 /** @typedef {import('./src/wallet-account-solana.js').SolanaWalletConfig} SolanaWalletConfig */

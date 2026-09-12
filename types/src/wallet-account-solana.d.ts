@@ -34,19 +34,19 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     private _signer;
     /**
-     * Raw Ed25519 public key bytes (32 bytes).
-     *
-     * @private
-     * @type {Uint8Array | undefined}
-     */
-    private _rawPublicKey;
-    /**
      * Raw Ed25519 private key bytes (32 bytes).
      *
      * @private
      * @type {Uint8Array | undefined}
      */
     private _rawPrivateKey;
+    /**
+     * Raw Ed25519 public key bytes (32 bytes).
+     *
+     * @private
+     * @type {Uint8Array}
+     */
+    private _rawPublicKey;
     /**
      * The derivation path's index of this account.
      *
@@ -79,7 +79,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
     /**
      * Signs a transaction.
      *
-     * @param {SolanaTransaction} tx - The transaction to sign.
+     * @param {SolanaTransaction} tx - The transaction to sign: an unsigned transaction or a base64-encoded serialized transaction.
      * @returns {Promise<FullySignedTransaction>} The signed transaction.
      * @throws {Error} If the transaction's cost exceeds the maximum transaction fee option.
      */
@@ -87,14 +87,14 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
     /**
      * Quotes the costs of a send transaction operation.
      *
-     * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction. Either an unsigned transaction or an already-signed transaction.
+     * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction. Either an unsigned transaction, an already-signed transaction, or a base64-encoded serialized transaction.
      * @returns {Promise<Omit<TransactionResult, 'hash'>>} The transaction's quotes.
      */
     quoteSendTransaction(tx: SolanaTransaction | FullySignedTransaction): Promise<Omit<TransactionResult, "hash">>;
     /**
      * Sends a transaction.
      *
-     * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction. Either an unsigned transaction or an already-signed transaction.
+     * @param {SolanaTransaction | FullySignedTransaction} tx - The transaction. Either an unsigned transaction, an already-signed transaction, or a base64-encoded serialized transaction.
      * @returns {Promise<TransactionResult>} The transaction's result.
      * @throws {Error} If the transaction's cost exceeds the maximum transaction fee option.
      */
@@ -113,6 +113,17 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      */
     protected _isSignedTransaction(tx: SolanaTransaction | FullySignedTransaction): boolean;
     /**
+     * Signs a base64-encoded serialized transaction (e.g. a swap or bridge payload built
+     * by an external API) with the account's key pair.
+     *
+     * @protected
+     * @param {string} serializedTransaction - The base64-encoded serialized transaction.
+     * @returns {Promise<FullySignedTransaction>} The signed transaction.
+     * @throws {Error} If the transaction's fee payer is not the account, or if the
+     *   transaction still misses signatures the account cannot provide.
+     */
+    protected _signSerializedTransaction(serializedTransaction: string): Promise<FullySignedTransaction>;
+    /**
      * Calculates the fee for an already-signed transaction.
      *
      * @protected
@@ -125,18 +136,19 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
     /**
      * Transfers a token to another address.
      *
-     * @param {TransferOptions} options - The transfer's options.
+     * @param {SolanaTransferOptions} options - The transfer's options.
      * @returns {Promise<TransferResult>} The transfer's result.
      * @throws {Error} If the transfer's cost exceeds the maximum transfer fee option.
      * @note only SPL tokens - won't work for native SOL
      */
-    transfer(options: TransferOptions): Promise<TransferResult>;
+    transfer(options: SolanaTransferOptions): Promise<TransferResult>;
     /**
      * Returns a read-only copy of the account.
      *
      * @returns {Promise<WalletAccountReadOnlySolana>} The read-only account.
      */
     toReadOnlyAccount(): Promise<WalletAccountReadOnlySolana>;
+    _solanaReadOnlyAccount: WalletAccountReadOnlySolana;
     /**
      * Disposes the wallet account, erasing the private key from the memory.
      */
@@ -147,7 +159,7 @@ export default class WalletAccountSolana extends WalletAccountReadOnlySolana imp
      * @private
      * @returns {Promise<KeyPairSigner>} - The keypair signer
      */
-    _getSigner(): Promise<KeyPairSigner>;
+    private _getSigner;
 }
 export type IWalletAccount = import("@tetherto/wdk-wallet").IWalletAccount;
 export type KeyPair = import("@tetherto/wdk-wallet").KeyPair;
@@ -157,5 +169,6 @@ export type TransferResult = import("@tetherto/wdk-wallet").TransferResult;
 export type KeyPairSigner = import("@solana/signers").KeyPairSigner;
 export type SolanaTransaction = import("./wallet-account-read-only-solana.js").SolanaTransaction;
 export type SolanaWalletConfig = import("./wallet-account-read-only-solana.js").SolanaWalletConfig;
+export type SolanaTransferOptions = import("./wallet-account-read-only-solana.js").SolanaTransferOptions;
 export type FullySignedTransaction = import("@solana/transactions").FullySignedTransaction;
-import WalletAccountReadOnlySolana from "./wallet-account-read-only-solana.js";
+import WalletAccountReadOnlySolana from './wallet-account-read-only-solana.js';
